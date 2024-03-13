@@ -56,7 +56,7 @@ void I2C_write_bit(uint8_t b)
 
 uint8_t I2C_read_SDA(void)
 {
-    if (HAL_GPIO_ReadPin(SW_I2C_SDA_GPIO_Port, SW_I2C_SDA_Pin) == GPIO_PIN_SET)
+    if (HAL_GPIO_ReadPin(BM_SDA_GPIO_Port, BM_SDA_Pin) == GPIO_PIN_SET)
         return 1;
     else
         return 0;
@@ -229,7 +229,7 @@ _Bool I2C_receive(uint8_t address, uint8_t reg[], uint8_t *data, uint8_t reg_siz
         {
             for (int j = 0; j < size; j++)
             {
-                *data++ = I2C_read_byte(false, false); // read data
+                *data++ = I2C_read_byte(j == 0, false); // read data
             }
             I2C_stop_cond();
             return true;
