@@ -35,6 +35,7 @@
  */
 
 #include "driver_ina219_interface.h"
+#include <stdarg.h>
 
 /**
  * @brief iic bus send start
@@ -361,7 +362,7 @@ uint8_t ina219_interface_iic_write(uint8_t addr, uint8_t reg, uint8_t *buf, uint
  */
 void ina219_interface_delay_ms(uint32_t ms)
 {
-
+    HAL_Delay(ms);
 }
 
 /**
@@ -371,5 +372,9 @@ void ina219_interface_delay_ms(uint32_t ms)
  */
 void ina219_interface_debug_print(const char *const fmt, ...)
 {
+    va_list args;
     
+    va_start(args, fmt);
+    printf(fmt, args);
+    va_end(args);    
 }
