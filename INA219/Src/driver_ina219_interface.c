@@ -35,36 +35,8 @@
  */
 
 #include "driver_ina219_interface.h"
+#include "stm32_sw_i2c.h"
 #include <stdarg.h>
-
-/**
- * @brief iic bus send start
- * @note  none
- */
-static void a_iic_start(void)
-{
-    I2C_SET_SCL
-    I2C_SET_SDA
-    I2C_DELAY
-    I2C_CLEAR_SDA
-    I2C_DELAY
-    I2C_CLEAR_SCL
-    I2C_DELAY
-}
-
-/**
- * @brief iic bus send stop
- * @note  none
- */
-static void a_iic_stop(void)
-{
-    I2C_CLEAR_SDA
-    I2C_DELAY
-    I2C_SET_SCL
-    I2C_DELAY
-    I2C_SET_SDA
-    I2C_DELAY
-}
 
 /**
  * @brief  interface iic bus init
@@ -75,144 +47,9 @@ static void a_iic_stop(void)
  */
 uint8_t ina219_interface_iic_init(void)
 {
-
-    I2C_SET_SDA;
-    I2C_SET_SCL;
-
     return 0;
 }
 
-static uint8_t a_iic_read_sda(void)
-{
-    if (HAL_GPIO_ReadPin(BM_SDA_GPIO_Port, BM_SDA_Pin) == GPIO_PIN_SET)
-        return 1;
-    else
-        return 0;
-    return 0;
-}
-
-/**
- * @brief  iic wait ack
- * @return status code
- *         - 0 get ack
- *         - 1 no ack
- * @note   none
- */
-static uint8_t a_iic_wait_ack(void)
-{
-    uint16_t uc_err_time = 0;
-
-    I2C_SET_SDA
-    I2C_DELAY
-    I2C_SET_SCL
-    I2C_DELAY
-    
-    while (a_iic_read_sda() != 0)
-    {
-        uc_err_time++;
-        if (uc_err_time > 250)
-        {
-            a_iic_stop();
-            
-            return 1;
-        }
-    }
-    I2C_CLEAR_SCL;
-    
-    return 0;
-}
-
-/**
- * @brief iic bus send ack
- * @note  none
- */
-static void a_iic_ack(void)
-{
-    I2C_CLEAR_SCL;
-    I2C_CLEAR_SDA;
-    I2C_DELAY;
-    I2C_SET_SCL;
-    I2C_DELAY;
-    I2C_CLEAR_SCL;
-}
-
-/**
- * @brief iic bus send nack
- * @note  none
- */
-static void a_iic_nack(void)
-{
-    I2C_CLEAR_SCL;
-    I2C_SET_SDA;
-    I2C_DELAY;
-    I2C_SET_SCL;
-    I2C_DELAY;
-    I2C_CLEAR_SCL;
-}
-
-/**
- * @brief     iic send one byte
- * @param[in] txd is the sent byte
- * @note      none
- */
-static void a_iic_send_byte(uint8_t txd)
-{
-    uint8_t t;
-    
-    I2C_CLEAR_SCL;
-    for (t = 0; t < 8; t++)
-    {
-
-        if ((txd & 0x80)) {
-            I2C_SET_SDA;
-        }
-        else
-        {
-            I2C_CLEAR_SDA;
-        }
-
-        txd <<= 1;
-        I2C_DELAY;
-        I2C_SET_SCL;
-        I2C_DELAY;
-        I2C_CLEAR_SCL;
-    }
-}
-
-/**
- * @brief     iic read one byte
- * @param[in] ack is the sent ack
- * @return    read byte
- * @note      none
- */
-static uint8_t a_iic_read_byte(uint8_t ack)
-{
-    uint8_t i;
-    uint8_t receive = 0;
-    
-    for (i = 0; i < 8; i++)
-    {
-        I2C_CLEAR_SCL;
-        I2C_DELAY;
-        I2C_SET_SCL;
-        receive <<= 1;
-        if (a_iic_read_sda() != 0)
-        {
-            receive++;
-        }
-        I2C_DELAY;
-    }
-    if (ack != 0)
-    {
-        a_iic_ack();
-    }
-    else
-    {
-        a_iic_nack();
-    }
-    
-    return receive;
-}
 
 /**
  * @brief  interface iic bus deinit
@@ -223,10 +60,6 @@ static uint8_t a_iic_read_byte(uint8_t ack)
  */
 uint8_t ina219_interface_iic_deinit(void)
 {
-
-    I2C_SET_SDA;
-    I2C_SET_SCL;
-
     return 0;
 }
 
@@ -237,67 +70,20 @@ uint8_t ina219_interface_iic_deinit(void)
  * @param[out] *buf points to a data buffer
  * @param[in]  len is the length of the data buffer
  * @return     status code
- *             - 0 success
+ *             - 0 success;
  *             - 1 read failed
  * @note       none
  */
 uint8_t ina219_interface_iic_read(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t len)
 {
-    /* send a start */
-    a_iic_start();
-    
-    /* send the write addr */
-    a_iic_send_byte(addr);
-    if (a_iic_wait_ack() != 0)
-    {
-        a_iic_stop();
-        
-        return 1;
-    }
-    
-    /* send the reg */
-    a_iic_send_byte(reg);
-    if (a_iic_wait_ack() != 0)
-    {
-        a_iic_stop();
-        
-        return 1;
-    }
-    
-    /* send a start */
-    a_iic_start();
-    
-    /* send the read addr */
-    a_iic_send_byte(addr + 1);
-    if (a_iic_wait_ack() != 0)
-    {
-        a_iic_stop();
-        
-        return 1;
-    }
-    
-    /* read the data */
-    while (len != 0)
-    {
-        /* if the last */
-        if (len == 1)
-        {
-            /* send nack */
-            *buf = a_iic_read_byte(0);
-        }
-        else
-        {
-            /* send ack */
-            *buf = a_iic_read_byte(1);
-        }
-        len--;
-        buf++;
-    }
-    
-    /* send a stop */
-    a_iic_stop();
-    
-    return 0;
+    _Bool result;
+    uint8_t regi[1];
+
+    regi[0] = reg;
+
+    result =  I2C_receive(addr, regi, buf, 1, len);
+
+    return (result == false);
 }
 
 /**
@@ -313,46 +99,34 @@ uint8_t ina219_interface_iic_read(uint8_t addr, uint8_t reg, uint8_t *buf, uint1
  */
 uint8_t ina219_interface_iic_write(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t len)
 {
-    uint16_t i; 
-    
-    /* send a start */
-    a_iic_start();
-    
-    /* send the write addr */
-    a_iic_send_byte(addr);
-    if (a_iic_wait_ack() != 0)
+    if (I2C_write_byte(addr, true, false)) // first byte
     {
-        a_iic_stop();
-        
-        return 1;
-    }
-    
-    /* send the reg */
-    a_iic_send_byte(reg);
-    if (a_iic_wait_ack() != 0)
-    {
-        a_iic_stop();
-        
-        return 1;
-    }
-    
-    /* write the data */
-    for (i = 0; i < len; i++)
-    {
-        /* send one byte */
-        a_iic_send_byte(buf[i]);
-        if (a_iic_wait_ack() != 0)
+        if (!I2C_write_byte(reg, false, false))
         {
-            a_iic_stop(); 
-            
-            return 1;
+             return 1;
         }
-    }
-    
-    /* send a stop */
-    a_iic_stop();
+        for (int i = 0; i < len; i++)
+        {
+            if (i == (len - 1))
+            {
+                if (I2C_write_byte(buf[i], false, true))
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                if (!I2C_write_byte(buf[i], false, false))
+                {
+                    break;
+                }
+            }
+        }
 
-    return 0;
+    }
+
+    I2C_stop_cond();
+    return 1;
 }
 
 /**
