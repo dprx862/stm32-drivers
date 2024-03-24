@@ -47,6 +47,7 @@ typedef struct
 
 slip_status_t slipSetRxBuffer(slip_context_t *context, uint8_t *rxBuffer, uint32_t rxLimit);
 slip_status_t slipUnslipData(slip_context_t *context, uint8_t *inBuffer, uint32_t rxLen);
+slip_status_t slipSlipData(uint8_t *inBuffer, uint32_t inLen, uint8_t *outBuffer, uint32_t *outLen);
 
 #ifdef __cplusplus
 }
